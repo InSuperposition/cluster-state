@@ -1,0 +1,80 @@
+---
+# Cilium: CNI + kube-proxy replacement, and the Hubble observability stack.
+#
+# Hubble is NOT a separate release. `cilium hubble enable` mutates this same
+# Helm release, so the hubble.* values below must stay here explicitly --
+# Flux's upgrade.preserveValues defaults to false, so a release that omitted
+# them would silently turn Hubble off on the first reconciliation.
+#
+# Values were taken from `helm get values cilium` on the previously running
+# imperative install, not from the install script's --set flags. The Cilium
+# CLI injects values the script never passed (cluster.name, operator.replicas,
+# routingMode, tunnelProtocol); rebuilding from the script alone would have
+# dropped them, and operator.replicas reverting to the chart default of 2 is
+# unschedulable on a single node.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cilium
+  namespace: flux-system
+spec:
+  interval: 1h
+  releaseName: cilium
+  targetNamespace: kube-system
+  # Explicit, not inherited: Flux defaults storageNamespace to the
+  # HelmRelease's own namespace (flux-system), which would NOT match the
+  # existing release's storage in kube-system and would fail to adopt it.
+  storageNamespace: kube-system
+  chart:
+    spec:
+      chart: cilium
+      version: "1.20.0"
+      sourceRef:
+        kind: HelmRepository
+        name: cilium
+        namespace: flux-system
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  values:
+    kubeProxyReplacement: true
+
+    # 127.0.0.1 is correct ONLY because this cluster is single-node by
+    # definition (an OrbStack "prod" VM is not a meaningful thing). It is
+    # stable across VM recreates, which a DHCP-assigned eth0 address is not,
+    # and it avoids threading a dynamic IP across two git repos.
+    #
+    # A joined worker node would break this -- workers cannot reach the API
+    # on their own loopback. Any multi-node cluster gets its own
+    # clusters/<name>/ directory with a real API address.
+    k8sServiceHost: "127.0.0.1"
+    k8sServicePort: 6443
+
+    # Honour the podCIDR k0s already allocates (10.244.0.0/24 from the
+    # declared 10.244.0.0/16) instead of Cilium's default cluster-pool, which
+    # silently hands out 10.0.0.0/8 and makes envs/vm-orbstack/dev.tfvars'
+    # pod_cidr a fiction. Requires node .spec.podCIDR to be populated, which
+    # k0s does (--allocate-node-cidrs=true).
+    ipam:
+      mode: kubernetes
+
+    # Chart default is 2. On a single node the second replica is permanently
+    # unschedulable.
+    operator:
+      replicas: 1
+
+    routingMode: tunnel
+    tunnelProtocol: vxlan
+
+    cluster:
+      name: cluster-core-dev
+
+    hubble:
+      enabled: true
+      relay:
+        enabled: true
+      ui:
+        enabled: true

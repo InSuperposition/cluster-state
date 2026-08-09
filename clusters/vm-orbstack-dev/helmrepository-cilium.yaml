@@ -1,0 +1,12 @@
+---
+# One source serves both charts below: Cilium and Tetragon are published to
+# the same Helm repository. Kept as a single HelmRepository deliberately --
+# a second one pointing at the same URL would be duplication, not isolation.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: cilium
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://helm.cilium.io

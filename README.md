@@ -18,10 +18,15 @@ cluster runs, whether that cluster happens to be a single-node OrbStack VM,
 an EC2 instance, or bare metal.
 
 That is the whole boundary: **`infra` owns environments, `cluster-state` owns
-cluster content.** An earlier version of this repo had
-`clusters/vm-orbstack-dev/`, which baked both a provider and a tier into a
-repo that should know about neither, and hardcoded `cluster-core-dev` into a
-Helm value.
+cluster content.** An earlier version of this repo put a provider and a tier
+in the cluster directory name and hardcoded a full cluster identity into a
+Helm value — both facts this repo has no business knowing.
+
+The rule, precisely: **no provider, tier or environment name in any
+directory name, file name or value.** Prose may name one as an illustration
+(as above) — that is explanation, not configuration. What must never happen
+is a real name reaching a manifest, which is how this repo drifted the first
+time.
 
 ## Environment-specific values
 
@@ -31,7 +36,7 @@ whichever environment instantiates the cluster, through Flux's
 
 | Variable | Meaning | Supplied by |
 |---|---|---|
-| `${CLUSTER_NAME}` | identity of the running cluster | `infra`, from the env's `cluster_name` |
+| `${CLUSTER_NAME}` | identity of the running cluster | `infra`, from its `cluster_name` output |
 | `${K8S_SERVICE_HOST}` | how pods reach the API server | `infra`, per deployment topology |
 
 The test for whether a value belongs here or in `infra`: *would it differ

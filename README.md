@@ -13,9 +13,10 @@ with something else.
 ## This repo knows nothing about environments
 
 No provider, tier or environment name appears anywhere here — not in
-directory names, not in values. `clusters/core/` describes what a *core*
+directory names, not in values. `clusters/mgmt/` describes what a *management*
 cluster runs, whether that cluster happens to be a single-node OrbStack VM,
-an EC2 instance, or bare metal.
+an EC2 instance, or bare metal. A role is what a cluster is FOR; it is not an
+environment.
 
 That is the whole boundary: **`infra` owns environments, `cluster-state` owns
 cluster content.** An earlier version of this repo put a provider and a tier
@@ -47,17 +48,50 @@ identity would.
 ## Layout
 
 ```
-clusters/
-  core/                     # the "core" cluster role -- Flux syncs this path
+infrastructure/             # component definitions, one directory each
+  net-cilium/
     helmrepository-cilium.yaml
     cilium.yaml             # Cilium + Hubble (one release -- Hubble rides Cilium's)
+    kustomization.yaml
+  security-tetragon/
     tetragon.yaml
+    kustomization.yaml
+clusters/                   # cluster ROLES -- Flux syncs one of these paths
+  mgmt/kustomization.yaml   # the management cluster
+  core/kustomization.yaml   # transitional, identical to mgmt -- see below
 ```
 
-One directory per cluster *role*, not per cluster instance. There is one role
-today; a base/overlay split with a single consumer would be generalising from
-one example. Revisit when a second role exists and its real differences are
-known.
+`infrastructure/` names each component `<role>-<tool>`, matching `infra`'s
+module naming taxonomy: what it does first, what implements it second. A role
+directory holds nothing but a list of the bases that role runs, so every
+component is defined exactly once. When a role first needs to differ, the
+difference is a patch in the role directory, never a copy of the base.
+
+There is no `apps/` directory. There will be when there is an application to
+put in it; an empty one now would only be a guess about a shape nobody has
+needed yet.
+
+## Two role directories, for one window
+
+`core` and `mgmt` currently render byte-identical output. That is deliberate,
+and temporary.
+
+`core` was named for a core-versus-edge fleet split. Adopting Cluster API
+replaces that axis with management-versus-workload, so the role this cluster
+actually plays is `mgmt`. The rename lives in `infra`, which derives the synced
+path from its own output at runtime:
+
+```bash
+CLUSTER_STATE_PATH="./clusters/$(tofu output -raw cluster_role)"
+```
+
+So the rename cannot land before `clusters/mgmt/` exists, and `clusters/mgmt/`
+cannot be the only path while any `infra` revision still says `core`. Both
+exist from `v0.4.0` until every such revision is behind us. Because both list
+the same bases, this is one definition with two entry points, not a fork --
+they cannot drift.
+
+Deleting `clusters/core/` is the entire content of the `v0.5.0` release.
 
 ## What owns what
 
@@ -87,8 +121,15 @@ its own configuration.
 reproduces the same cluster. Promoting a change is two steps:
 
 ```bash
-git tag v0.2.0 && git push --tags          # here
+git tag v0.4.0 && git push --tags          # here
 # then in infra: bump the ref in bootstrap/flux-aio.cue and ./infra flux
+```
+
+Rendering a role before tagging is worth the two seconds -- it catches a base
+path that moved without its consumers:
+
+```bash
+kustomize build clusters/mgmt
 ```
 
 ## Bootstrap

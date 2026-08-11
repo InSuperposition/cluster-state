@@ -1,0 +1,14 @@
+---
+# Base: the cluster network. Cilium plus the Hubble stack that rides its Helm
+# release, and the HelmRepository both this and security-tetragon pull from.
+#
+# The HelmRepository lives here rather than in a shared base of its own: it is
+# named `cilium` and serves cilium's own chart, so a cluster that takes this
+# base always needs it. security-tetragon declares it as a dependency in prose
+# rather than duplicating the object -- two HelmRepositories at the same URL
+# would be duplication, not isolation.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - helmrepository-cilium.yaml
+  - cilium.yaml

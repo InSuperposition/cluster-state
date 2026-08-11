@@ -1,0 +1,11 @@
+---
+# Base: runtime security observability. Independent of net-cilium as software
+# -- its own chart, release and DaemonSet -- but it pulls from the
+# HelmRepository that base declares, and its HelmRelease dependsOn cilium for
+# ordering. Taking this base without net-cilium is therefore not a supported
+# combination today; nothing enforces that, because the only consumers are the
+# cluster roles below and both take everything.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - tetragon.yaml

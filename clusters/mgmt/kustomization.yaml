@@ -1,0 +1,13 @@
+---
+# The `mgmt` cluster role: the management cluster, the one bootstrapped
+# directly rather than provisioned by another cluster.
+#
+# Thin on purpose. A role directory answers only "which bases does this role
+# run", so the definition of each component lives in exactly one place under
+# infrastructure/. When a role first needs to differ, the difference is a patch
+# here -- not a copy of the base.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../infrastructure/net-cilium
+  - ../../infrastructure/security-tetragon

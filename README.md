@@ -48,7 +48,7 @@ identity would.
 ## Layout
 
 ```
-infrastructure/             # component definitions, one directory each
+modules/                    # component definitions, one directory each
   net-cilium/
     helmrepository-cilium.yaml
     cilium.yaml             # Cilium + Hubble (one release -- Hubble rides Cilium's)
@@ -60,11 +60,20 @@ clusters/                   # cluster ROLES -- Flux syncs one of these paths
   mgmt/kustomization.yaml   # the management cluster
 ```
 
-`infrastructure/` names each component `<role>-<tool>`, matching `infra`'s
-module naming taxonomy: what it does first, what implements it second. A role
+`modules/` names each component `<role>-<tool>`, matching `infra`'s module
+naming taxonomy: what it does first, what implements it second. A role
 directory holds nothing but a list of the bases that role runs, so every
 component is defined exactly once. When a role first needs to differ, the
 difference is a patch in the role directory, never a copy of the base.
+
+**The directory is `modules/`, not `infrastructure/`.** Both repos now use the
+same word for the same idea — a composable building block that is never
+deployed on its own — so `infra`'s naming taxonomy describes this repo as
+written rather than by analogy. `infrastructure/` was also the weaker name on
+its own terms: every file in this repo is infrastructure, so it distinguished
+nothing, which is the same test that rejected `gitops` as this repo's name and
+`k0s` as a module suffix. The rename is directory-only; the manifests, the
+component names and the rendered output are unchanged.
 
 There is no `apps/` directory. There will be when there is an application to
 put in it; an empty one now would only be a guess about a shape nobody has
@@ -118,7 +127,7 @@ its own configuration.
 reproduces the same cluster. Promoting a change is two steps:
 
 ```bash
-git tag v0.5.0 && git push --tags          # here
+git tag v0.6.0 && git push --tags          # here
 # then in infra: bump the ref in modules/gitops-flux/flux-aio.cue and ./infra flux
 ```
 
@@ -127,6 +136,16 @@ path that moved without its consumers:
 
 ```bash
 kustomize build clusters/mgmt
+```
+
+For a rename that is meant to change nothing, diff the render against the
+previous tag rather than eyeballing it. `kustomize build` succeeds on a
+role whose base list silently lost an entry, so "it still renders" is not
+evidence:
+
+```bash
+git stash && kustomize build clusters/mgmt > /tmp/before.yaml && git stash pop
+kustomize build clusters/mgmt | diff /tmp/before.yaml -
 ```
 
 ## Bootstrap

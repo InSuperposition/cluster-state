@@ -33,7 +33,7 @@ time.
 
 Anything genuinely environment-specific is a `${VARIABLE}` here, supplied by
 whichever environment instantiates the cluster, through Flux's
-`postBuild.substitute` (configured in `infra`'s `bootstrap/flux-aio.cue`).
+`postBuild.substitute` (configured in `infra`'s `modules/gitops-flux/flux-aio.cue`).
 
 | Variable | Meaning | Supplied by |
 |---|---|---|
@@ -58,7 +58,6 @@ infrastructure/             # component definitions, one directory each
     kustomization.yaml
 clusters/                   # cluster ROLES -- Flux syncs one of these paths
   mgmt/kustomization.yaml   # the management cluster
-  core/kustomization.yaml   # transitional, identical to mgmt -- see below
 ```
 
 `infrastructure/` names each component `<role>-<tool>`, matching `infra`'s
@@ -71,27 +70,25 @@ There is no `apps/` directory. There will be when there is an application to
 put in it; an empty one now would only be a guess about a shape nobody has
 needed yet.
 
-## Two role directories, for one window
+## One role directory, for now
 
-`core` and `mgmt` currently render byte-identical output. That is deliberate,
-and temporary.
+There is a single cluster role, `mgmt` -- the management cluster, the one
+bootstrapped directly rather than provisioned by another cluster. A second role
+is a second directory listing whichever bases it needs; the bases themselves do
+not change.
 
-`core` was named for a core-versus-edge fleet split. Adopting Cluster API
-replaces that axis with management-versus-workload, so the role this cluster
-actually plays is `mgmt`. The rename lives in `infra`, which derives the synced
-path from its own output at runtime:
+`v0.4.0` briefly carried a second directory, `core`, rendering byte-identical
+output. That existed for one window and one reason: `infra` derives the synced
+path from its own role output at runtime
 
 ```bash
 CLUSTER_STATE_PATH="./clusters/$(tofu output -raw cluster_role)"
 ```
 
-So the rename cannot land before `clusters/mgmt/` exists, and `clusters/mgmt/`
-cannot be the only path while any `infra` revision still says `core`. Both
-exist from `v0.4.0` until every such revision is behind us. Because both list
-the same bases, this is one definition with two entry points, not a fork --
-they cannot drift.
-
-Deleting `clusters/core/` is the entire content of the `v0.5.0` release.
+so the role could not be renamed to `mgmt` before `clusters/mgmt/` existed, and
+`clusters/mgmt/` could not be the only path while any `infra` revision still
+said `core`. `v0.5.0` closes that window. Pin `v0.5.0` or later only from an
+`infra` revision whose `cluster_role` is `mgmt`.
 
 ## What owns what
 
@@ -121,8 +118,8 @@ its own configuration.
 reproduces the same cluster. Promoting a change is two steps:
 
 ```bash
-git tag v0.4.0 && git push --tags          # here
-# then in infra: bump the ref in bootstrap/flux-aio.cue and ./infra flux
+git tag v0.5.0 && git push --tags          # here
+# then in infra: bump the ref in modules/gitops-flux/flux-aio.cue and ./infra flux
 ```
 
 Rendering a role before tagging is worth the two seconds -- it catches a base

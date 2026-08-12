@@ -1,0 +1,32 @@
+---
+# The `workload` cluster role: a cluster provisioned to run workloads, which
+# reconciles ITSELF. Its own Flux syncs this directory; the management cluster
+# does not push content into it. That follows the standing decision that each
+# cluster reconciles itself, and that a hub holding every cluster's credentials
+# was rejected on credential-concentration grounds.
+#
+# IT RUNS THE SAME BASES AS `mgmt` TODAY, and that is deliberate rather than an
+# oversight. Nothing under modules/ is management-specific -- a CNI and runtime
+# security observability belong on any cluster -- so inventing a difference to
+# justify the directory would be inventing policy. What this directory buys
+# right now is STRUCTURAL: a workload cluster stops silently syncing
+# `clusters/mgmt`.
+#
+# That is not hypothetical. During the control-plane placement measurement,
+# `envs/in-cluster` reconciled `clusters/mgmt` -- the management bundle, Hubble
+# UI and all -- because `./infra flux` derives the path from `cluster_role` and
+# that arm happened to be named `mgmt`. Nothing would have stopped the next
+# cluster doing the same.
+#
+# THE FIRST CANDIDATE DIFFERENCE, named but NOT decided here: `hubble.ui` is
+# enabled in modules/net-cilium. A Hubble UI is a human-facing console, and one
+# per fleet is the usual shape -- N workload clusters each running their own
+# web UI is probably wrong. It stays enabled until someone decides that on
+# purpose, because a role directory is the wrong place to make a policy choice
+# quietly. When it is decided, it belongs here as a patch, not as a forked copy
+# of the base.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../modules/net-cilium
+  - ../../modules/security-tetragon

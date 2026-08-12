@@ -57,8 +57,9 @@ modules/                    # component definitions, one directory each
   security-tetragon/
     tetragon.yaml
     kustomization.yaml
-clusters/                   # cluster ROLES -- Flux syncs one of these paths
-  mgmt/kustomization.yaml   # the management cluster
+clusters/                     # cluster ROLES -- Flux syncs one of these paths
+  mgmt/kustomization.yaml     # the management cluster
+  workload/kustomization.yaml # a cluster provisioned to run workloads
 ```
 
 `modules/` names each component `<role>-<tool>`, matching `infra`'s module
@@ -80,12 +81,24 @@ There is no `apps/` directory. There will be when there is an application to
 put in it; an empty one now would only be a guess about a shape nobody has
 needed yet.
 
-## One role directory, for now
+## Two role directories
 
-There is a single cluster role, `mgmt` -- the management cluster, the one
-bootstrapped directly rather than provisioned by another cluster. A second role
-is a second directory listing whichever bases it needs; the bases themselves do
-not change.
+`mgmt` -- the management cluster, the one bootstrapped directly rather than
+provisioned by another cluster -- and `workload`, a cluster provisioned to run
+workloads, which reconciles itself rather than being pushed to.
+
+**They list the same bases today, and that is deliberate.** Nothing under
+`modules/` is management-specific: a CNI and runtime security observability
+belong on any cluster. Inventing a difference to justify the second directory
+would be inventing policy. What it buys is structural -- a workload cluster
+stops silently syncing `clusters/mgmt`, which is exactly what happened during
+`infra`'s control-plane placement measurement, because the synced path is
+derived from the cluster's own role and that cluster happened to be named
+`mgmt`.
+
+The first candidate difference is named in `clusters/workload/` and not
+decided: `hubble.ui` is a human-facing console, and one per fleet is the usual
+shape. When someone decides that on purpose it belongs there as a patch.
 
 `v0.4.0` briefly carried a second directory, `core`, rendering byte-identical
 output. That existed for one window and one reason: `infra` derives the synced
@@ -128,15 +141,23 @@ its own configuration.
 reproduces the same cluster. Promoting a change is two steps:
 
 ```bash
-git tag v0.6.0 && git push --tags          # here
-# then in infra: bump the ref in modules/gitops-flux/flux-aio.cue and ./infra flux
+git tag v0.8.0 && git push --tags          # here
+# then in infra: bump cluster_state_ref in envs/<tier>/terraform.tfvars, and
+#                ./infra flux
 ```
+
+**The pin moved out of `infra`'s Flux bundle on 2026-08-13** (its T7). It is a
+per-cluster bootstrap parameter now, declared beside `k0s_version` in the env's
+auto-loaded `terraform.tfvars`, and routed into the bundle at flux time through
+a Tofu output. `infra`'s own gate fails if the bundle ever hardcodes a ref
+again.
 
 Rendering a role before tagging is worth the two seconds -- it catches a base
 path that moved without its consumers:
 
 ```bash
-kustomize build clusters/mgmt
+kubectl kustomize clusters/mgmt
+kubectl kustomize clusters/workload
 ```
 
 For a rename that is meant to change nothing, diff the render against the
@@ -145,8 +166,8 @@ role whose base list silently lost an entry, so "it still renders" is not
 evidence:
 
 ```bash
-git stash && kustomize build clusters/mgmt > /tmp/before.yaml && git stash pop
-kustomize build clusters/mgmt | diff /tmp/before.yaml -
+git stash && kubectl kustomize clusters/mgmt > /tmp/before.yaml && git stash pop
+kubectl kustomize clusters/mgmt | diff /tmp/before.yaml -
 ```
 
 ## Bootstrap

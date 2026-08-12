@@ -39,6 +39,7 @@ whichever environment instantiates the cluster, through Flux's
 |---|---|---|
 | `${CLUSTER_NAME}` | identity of the running cluster | `infra`, from its `cluster_name` output |
 | `${K8S_SERVICE_HOST}` | how pods reach the API server | `infra`, per deployment topology |
+| `${K8S_SERVICE_PORT}` | the port that address answers on | `infra`, per deployment topology |
 
 The test for whether a value belongs here or in `infra`: *would it differ
 between two environments running this same cluster role?* Chart versions,

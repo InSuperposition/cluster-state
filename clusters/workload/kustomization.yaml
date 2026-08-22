@@ -30,3 +30,4 @@ kind: Kustomization
 resources:
   - ../../modules/net-cilium
   - ../../modules/security-tetragon
+  - ../../modules/introspection-inspector-gadget

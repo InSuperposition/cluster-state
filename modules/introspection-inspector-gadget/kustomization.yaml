@@ -1,0 +1,10 @@
+---
+# Base: ad-hoc eBPF introspection. Zero bootstrap dependency, zero policy
+# authoring per question -- run a named gadget, see output, stop. Genuinely
+# independent of net-cilium as software, but needs pod networking to pull
+# its image, hence dependsOn: cilium in gadget.yaml for ordering only.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - helmrepository-gadget.yaml
+  - gadget.yaml

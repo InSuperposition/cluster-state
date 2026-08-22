@@ -1,0 +1,55 @@
+---
+# Inspector Gadget: ad-hoc eBPF introspection (trace/top/snapshot/profile/
+# advise/audit gadgets run by name via `kubectl gadget run`). Genuinely
+# independent of Cilium as software -- its own chart, release and
+# DaemonSet -- but it pulls from the HelmRepository this module declares.
+#
+# dependsOn is ordering, not a hard requirement: Inspector Gadget does not
+# need Cilium to function, but it does need pod networking to pull its
+# image and reach the API, so reconciling it before the CNI is ready just
+# produces avoidable retries. Same reasoning security-tetragon states for
+# itself.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: gadget
+  namespace: flux-system
+spec:
+  interval: 1h
+  releaseName: gadget
+  targetNamespace: gadget
+  # Explicit for the same reason cilium.yaml/tetragon.yaml are explicit:
+  # matches where the release actually stores its state.
+  storageNamespace: gadget
+  install:
+    # The one module in this repo whose target namespace does not already
+    # exist (net-cilium/security-tetragon both target kube-system).
+    createNamespace: true
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  dependsOn:
+    - name: cilium
+  chart:
+    spec:
+      chart: gadget
+      version: "0.55.0"
+      sourceRef:
+        kind: HelmRepository
+        name: gadget
+        namespace: flux-system
+  values:
+    # Chart default is `resources: {}` (unbounded). These numbers are the
+    # chart maintainers' own suggested example, commented out in their
+    # default values.yaml -- not invented, not load-tested against this
+    # cluster yet. A debugging tool that can OOM the node it is tracing is
+    # a real failure mode worth bounding before it happens once.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 1000m
+        memory: 1Gi

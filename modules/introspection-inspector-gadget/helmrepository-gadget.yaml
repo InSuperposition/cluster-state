@@ -1,0 +1,12 @@
+---
+# Source for the gadget chart alone -- named `gadget`, matching net-cilium's
+# reasoning for why cilium's own HelmRepository lives beside its one
+# consumer rather than in a shared base.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: gadget
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://inspektor-gadget.github.io/charts
